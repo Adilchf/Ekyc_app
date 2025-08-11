@@ -6,7 +6,7 @@ import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 
-import 'package:google_ml_kit/google_ml_kit.dart';
+
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:flutter_tesseract_ocr/android_ios.dart';
@@ -727,7 +727,7 @@ void _extractCardnumber() {
       // Create a multipart request for the face comparison
       var comparisonRequest = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.7:8000/compare-faces'), // FastAPI endpoint
+        Uri.parse('http://192.168.162.156:8000/compare-faces'), // FastAPI endpoint
       );
 
       // Add files for comparison
@@ -795,7 +795,7 @@ void _extractCardnumber() {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.7:5000/save-id-card'),
+        Uri.parse('http://192.168.162.156:5000/save-id-card'),
       );
 
       request.fields.addAll({

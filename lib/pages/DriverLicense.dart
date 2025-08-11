@@ -6,7 +6,6 @@ import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 
-import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:flutter_tesseract_ocr/android_ios.dart';
@@ -368,55 +367,32 @@ class _DriverlicenseState extends State<Driverlicense> {
     }
   }
 
-  void _extractNIN() {
-    String? nin;
+void _extractNIN() {
+  String? nin;
 
-    final cleanText = _ocrText.replaceAll('\n', ' ').toLowerCase();
+  // Remove newlines and lowercase for consistency
+  final cleanText = _ocrText.replaceAll('\n', ' ').toLowerCase();
 
-    // Match either:
-    // 1. 18 digits with optional single spaces between them
-    // 2. Or 18 consecutive digits
-    final regex = RegExp(r'\b(?:\d\s?){18}\b');
+  // Match exactly 18 digits, possibly with spaces between them, and possibly followed by letters/symbols
+  final regex = RegExp(r'((?:\d\s*){18})');
 
-    const keywords = [
-      'رقم التعريف الوطني',
-      'الوطني التعريف رقم',
-      'national identification number',
-      'nin'
-    ];
-
-    for (final keyword in keywords) {
-      final index = cleanText.indexOf(keyword);
-      if (index != -1) {
-        final afterKeyword = cleanText.substring(index, index + 100);
-        final match = regex.firstMatch(afterKeyword);
-        if (match != null) {
-          // Remove spaces to store only digits
-          nin = match.group(0)?.replaceAll(' ', '');
-          break;
-        }
-      }
-    }
-
-    // Fallback search
-    if (nin == null) {
-      final match = regex.firstMatch(cleanText);
-      if (match != null) {
-        nin = match.group(0)?.replaceAll(' ', '');
-      }
-    }
-
-    setState(() => _extractedNIN = nin ?? '');
-
-    if (_extractedNIN.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('NIN not found. Try a clearer image.')),
-      );
-      debugPrint('OCR Text:\n$_ocrText');
-    } else {
-      debugPrint('Extracted NIN: $_extractedNIN');
-    }
+  final match = regex.firstMatch(cleanText);
+  if (match != null) {
+    nin = match.group(1)?.replaceAll(RegExp(r'\s+'), ''); // remove spaces
   }
+
+  setState(() => _extractedNIN = nin ?? '');
+
+  if (_extractedNIN.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('NIN not found. Try a clearer image.')),
+    );
+    debugPrint('OCR Text:\n$_ocrText');
+  } else {
+    debugPrint('Extracted NIN: $_extractedNIN');
+  }
+}
+
 
   String _extractFamilyName(String text) {
     // Match all letters and optional spaces before the first '<<'
@@ -430,18 +406,24 @@ class _DriverlicenseState extends State<Driverlicense> {
   }
 
 String _extractGivenName(String text) {
+  // Remove all spaces from the OCR text before processing
+  text = text.replaceAll(' ', '');
+
   // Match given names after the first '<<' and before the next '<<'
   final match = RegExp(r'<<([A-Z<]+)<<*$', caseSensitive: false).firstMatch(text);
+
   if (match != null) {
     return match.group(1)!
-        .replaceAll('<', ' ')
-        .replaceAll(RegExp(r'[^A-Z\s]', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll('<', ' ') // replace < with space
+        .replaceAll(RegExp(r'[^A-Z\s]', caseSensitive: false), '') // remove non-letters
+        .replaceAll(RegExp(r'\s+'), ' ') // normalize spaces
         .trim()
         .toUpperCase();
   }
+
   return '';
 }
+
 
 
   void _extractBirthdate() {
@@ -541,44 +523,30 @@ String _extractGivenName(String text) {
     }
   }
 
-  void _extractCardnumber() {
-    String? cnumber;
+void _extractCardnumber() {
+  String? cnumber;
 
-    // Pattern 1: Direct keyword match
-    const keywords = ['بطاقة التعريف الوطنية'];
+  final cleanText = _ocrText.replaceAll('\n', ' ');
 
-    // Search for keyword patterns
-    for (final keyword in keywords) {
-      final index = _ocrText.indexOf(keyword);
-      if (index != -1) {
-        final textAfter = _ocrText.substring(index + keyword.length);
-        final match = RegExp(r'\b[A-Za-z0-9]{9}\b').firstMatch(textAfter);
-        if (match != null) {
-          cnumber = match.group(0);
-          break;
-        }
-      }
-    }
+  // Match pattern: one letter followed by 8 digits
+  final match = RegExp(r'\b[A-Za-z]\d{8}\b').firstMatch(cleanText);
 
-    // Pattern 2: Standalone 9-character alphanumeric (fallback)
-    if (cnumber == null) {
-      final matches = RegExp(r'\b[A-Za-z0-9]{9}\b').allMatches(_ocrText);
-      if (matches.isNotEmpty) {
-        cnumber = matches.first.group(0);
-      }
-    }
-
-    setState(() => _extractedCardnumber = cnumber ?? '');
-    _frontCardNumber = cnumber;
-
-    if (_extractedCardnumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Card number not found. Try better quality image')),
-      );
-      debugPrint('OCR Text:\n$_ocrText'); // For debugging
-    }
+  if (match != null) {
+    cnumber = match.group(0)?.toUpperCase(); // <-- Uppercase here
   }
+
+  setState(() => _extractedCardnumber = cnumber ?? '');
+  _frontCardNumber = cnumber;
+
+  if (_extractedCardnumber.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text('Card number not found. Try better quality image')),
+    );
+    debugPrint('OCR Text:\n$_ocrText'); // For debugging
+  }
+}
+
 
   Future<void> _takeSelfie() async {
     final XFile? imageFile =
@@ -747,7 +715,7 @@ String _extractGivenName(String text) {
       // Create a multipart request for the face comparison
       var comparisonRequest = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.7:8000/compare-faces'), // FastAPI endpoint
+        Uri.parse('http://192.168.162.156:8000/compare-faces'), // FastAPI endpoint
       );
 
       // Add files for comparison
@@ -801,7 +769,12 @@ String _extractGivenName(String text) {
     if (_frontCardNumber != null &&
         _backCardNumber != null &&
         _frontCardNumber != _backCardNumber) {
-      _showCustomSnackbar('Error: Front and back are from different cards');
+        _showCustomDialog(
+          title: "Error Detected",
+          message: "Front and back are from different cards",
+          icon: Icons.error,
+          iconColor: Colors.red,
+        );
       return;
     }
 
@@ -821,7 +794,7 @@ String _extractGivenName(String text) {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.7:5000/save-id-card'),
+        Uri.parse('http://192.168.162.156:5000/save-id-card'),
       );
 
       request.fields.addAll({

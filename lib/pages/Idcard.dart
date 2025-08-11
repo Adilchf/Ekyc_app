@@ -5,9 +5,10 @@ import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
+import 'package:ekyc/pages/guided_selfie_screen.dart';
 import 'package:flutter/services.dart';
 
-import 'package:google_ml_kit/google_ml_kit.dart';
+
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 
@@ -73,7 +74,7 @@ class _IdcardState extends State<Idcard> {
   File? _selfieImage;
   DateTime? _birthDate;
   File? _extractedPhoto;
-  Rect? _photoArea;
+   Rect? _photoArea;
   List<File> _selfieImages = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -586,25 +587,26 @@ class _IdcardState extends State<Idcard> {
         .toLowerCase();
   }
 
-  Future<void> _takeSelfie() async {
-    final XFile? imageFile = await _picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front, // 👈 Use front camera
-    );
+Future<void> _takeSelfie() async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => GuidedSelfieScreen(
+        onSelfieTaken: (File image) async {
+          final face = await _detectFace(image);
+          if (face != null) {
+            final cropped = await _cropFace(image, face);
+            if (cropped != null) {
+              setState(() => _selfiePath = cropped.path);
+              await uploadAndCompareFaces();
+            }
+          }
+        },
+      ),
+    ),
+  );
+}
 
-    if (imageFile == null) return;
-
-    File image = File(imageFile.path);
-    final face = await _detectFace(image);
-
-    if (face != null) {
-      final croppedFace = await _cropFace(image, face);
-      if (croppedFace != null) {
-        setState(() => _selfiePath = croppedFace.path);
-      }
-    }
-    await uploadAndCompareFaces();
-  }
 
   Future<Face?> _detectFace(File imageFile) async {
     final InputImage inputImage = InputImage.fromFile(imageFile);
@@ -756,7 +758,7 @@ class _IdcardState extends State<Idcard> {
       // Create a multipart request for the face comparison
       var comparisonRequest = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.7:8000/compare-faces'), // FastAPI endpoint
+        Uri.parse('http://192.168.2.171:8000/compare-faces'), // FastAPI endpoint
       );
 
       // Add files for comparison
@@ -813,7 +815,7 @@ class _IdcardState extends State<Idcard> {
     _frontCardNumber != _backCardNumber) {
   _showCustomDialog(
           title: "Error Detected",
-          message: "Front and Back are not from the same",
+          message: "Front and back are from different cards",
           icon: Icons.error,
           iconColor: Colors.red,
         );
@@ -836,7 +838,7 @@ class _IdcardState extends State<Idcard> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.7:5000/save-id-card'),
+        Uri.parse('http://192.168.2.171:5000/save-id-card'),
       );
 
       request.fields.addAll({
