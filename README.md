@@ -1,3 +1,3 @@
-# ekyc
+# ekyc Project
 
-A new Flutter project.
+an AI-powered eKYC (Electronic Know Your Customer) application to automate identity verification by extracting and validating user information from ID documents and selfies. Implemented OCR functionality to extract identity number, card number, and personal details from both the front and back of ID cards. Integrated face detection and comparison features to match the user's selfie with the ID card photo using DeepFace. Designed and built a user-friendly interface in Flutter, while handling backend logic in FastAPI with PostgreSQL for secure data storage. Focused on real-time image processing, usability, and security to ensure a smooth and compliant verification process. Gained hands-on experience in computer vision, mobile development, backend integration, and biometric identity validation.
